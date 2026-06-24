@@ -1,0 +1,8 @@
+*
+
+!.gitignore
+!index.js
+
+!docs/
+!docs/variables'n'functions/
+!docs/variables'n'functions/**
