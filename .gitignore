@@ -6,3 +6,5 @@
 !docs/
 !docs/variables'n'functions/
 !docs/variables'n'functions/**
+
+!package.json

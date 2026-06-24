@@ -1,0 +1,15 @@
+{
+  "name": "easy-file-size",
+  "version": "1.0.0",
+  "description": "Easy file and directory size checker CLI tool",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "yoryo": "./index.js"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "author": "YuzukoUnderson",
+  "license": "MIT"
+}
