@@ -4,12 +4,6 @@
 
 ## 関数定義
 
-### 関数 `showHelp` (L40-61)
-- **役割**: ツールの使い方と利用可能なオプション一覧（ヘルプメッセージ）を英語でコンソールに出力する。
-- **引数**: なし
-- **戻り値**:
-  - `void`
-
 ### 関数 `formatSize` (L69-82)
 - **役割**: バイト数を人間が読みやすい単位（B, KB, MB, GB, TB）に変換する。カラー表示が有効な場合はサイズ情報を灰色で装飾する。
 - **引数**:
@@ -61,7 +55,6 @@ graph TD
   main["main()"] --> buildSizeMap["buildSizeMap()"]
   main --> renderTree["renderTree()"]
   main --> formatSize["formatSize()"]
-  main --> showHelp["showHelp()"]
   renderTree --> formatSize
 ```
 
