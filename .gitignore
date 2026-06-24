@@ -11,3 +11,9 @@
 
 !LICENSE
 !README.md
+
+!.github/
+!.github/workflows/
+!.github/workflows/release.yml
+!wix/
+!wix/yoryo.wxs

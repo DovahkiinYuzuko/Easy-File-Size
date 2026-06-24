@@ -27,11 +27,24 @@
 - **インテリジェントなカラー表示**: ディレクトリの深さに応じて自動で色分け表示します。なお、`>` などのリダイレクトでファイルに結果を書き出す際は、カラー用エスケープシーケンスを自動でカットし、文字化けを防ぎます。
 
 ### インストール方法
-以下のコマンドで、GitHubから直接グローバルコマンドとしてインストールできます。
+お使いの環境に応じて、以下のいずれかの方法でインストールできます。
 
+#### 方法 1: npm によるインストール（推奨・超軽量）
+Node.js（npm）環境がすでに用意されている方向けの、最も軽量なインストール方法です（サイズは数KB程度）。
+以下のコマンドを実行するだけで、GitHubから直接グローバルコマンドとしてインストールできます。
 ```bash
 npm install -g YuzukoUnderson/Easy-File-Size
 ```
+
+#### 方法 2: インストーラーまたは実行ファイルによるインストール
+お使いのパソコンに Node.js がインストールされていなくても動作します。
+リポジトリの [Releases](../../releases) ページから最新のバイナリをダウンロードできます。
+- **Windows の場合**: `.msi` インストーラーを実行すると、自動的にインストールと環境変数 `PATH` の設定が行われ、すぐに `yoryo` コマンドが使用可能になります。
+- **macOS / Linux の場合**: 各OS用の実行バイナリをダウンロードし、任意のフォルダに配置して環境変数 `PATH` を通してご利用ください。
+
+> [!WARNING]
+> - インストーラーおよび実行ファイルは、実行に必要な Node.js ランタイムを内部に同梱してビルドされているため、ファイルサイズが数十MB〜100MB程度と大きくなります。
+> - macOS および Linux 用の実行バイナリは自動ビルドされていますが、開発環境（Windows 11）以外での実機検証は行われていないため**動作保証外（自己責任での利用）**となります。
 
 ### 使い方
 ```bash
@@ -86,11 +99,24 @@ Easy-File-Size is a Node.js-based CLI tool that can be invoked via the `yoryo` c
 - **Smart Colorization**: Color-codes directories dynamically by depth. It automatically detects redirection and falls back to plain text when outputting to files to prevent encoding issues.
 
 ### Installation
-Install globally directly from GitHub using npm:
+Choose one of the following methods depending on your environment.
 
+#### Method 1: Install via npm (Recommended & Lightweight)
+If you already have Node.js (npm) installed, this is the most lightweight method (only a few KB).
+Run the following command to install globally directly from GitHub:
 ```bash
 npm install -g YuzukoUnderson/Easy-File-Size
 ```
+
+#### Method 2: Install via Installer or Standalone Binary (No Node.js Required)
+Use this option if Node.js is not installed on your system.
+You can download the files from the [Releases](../../releases) page.
+- **For Windows**: Download and run the `.msi` installer. It will automatically install the tool and register it to your system `PATH`.
+- **For macOS / Linux**: Download the standalone binary for your OS, place it in an appropriate directory, and manually add it to your system `PATH`.
+
+> [!WARNING]
+> - Standalone binaries/installers bundle the Node.js runtime environment inside them. Therefore, the download size is significantly larger (tens of MBs to 100MB).
+> - macOS and Linux binaries are built automatically, but they have not been verified on actual devices. They are provided as-is without any warranties or guarantees of operation.
 
 ### Usage
 ```bash

@@ -7,9 +7,24 @@
   "bin": {
     "yoryo": "./index.js"
   },
+  "scripts": {
+    "build": "pkg .",
+    "build:msi": "candle -out dist/yoryo.wixobj wix/yoryo.wxs; light -out dist/Easy-File-Size-Installer.msi dist/yoryo.wixobj"
+  },
   "engines": {
     "node": ">=16.0.0"
   },
   "author": "YuzukoUnderson",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "targets": [
+      "node18-win-x64",
+      "node18-macos-x64",
+      "node18-linux-x64"
+    ],
+    "outputPath": "dist"
+  }
 }
