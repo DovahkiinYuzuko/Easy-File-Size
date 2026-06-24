@@ -21,6 +21,20 @@ const COLORS = {
 };
 
 /**
+ * ワイルドカードパターン（例: *.py）を正規表現オブジェクトに変換する
+ * @param {string} pattern - ワイルドカードパターン
+ * @returns {RegExp} 変換後の正規表現
+ */
+function wildcardToRegex(pattern) {
+  // 特別な正規表現文字をエスケープし、* を .* に、? を . に変換する
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.');
+  return new RegExp(`^${escaped}$`, 'i');
+}
+
+/**
  * バイト数を人間が読みやすい単位（B, KB, MB, GB, TB）に変換する
  * @param {number} bytes - バイト数
  * @param {boolean} useColor - カラー表示を使用するかどうか
@@ -44,12 +58,14 @@ export function formatSize(bytes, useColor = false) {
 /**
  * 指定されたディレクトリ配下のサイズを1回の走査で集計し、各パスの合計バイト数を記録したMapを返す
  * @param {string} dirPath - 対象ディレクトリのパス
- * @param {string[]} ignoreList - 無視するフォルダ/ファイル名の配列
+ * @param {object} options - パースオプション（ignoreList, matchPattern）
  * @param {Map<string, number>} sizeMap - 再帰用サイズ情報マップ
  * @returns {Map<string, number>} 構築されたサイズマップ
  */
-export function buildSizeMap(dirPath, ignoreList = [], sizeMap = new Map()) {
+export function buildSizeMap(dirPath, options = {}, sizeMap = new Map()) {
+  const { ignoreList = [], matchPattern = null } = options;
   let totalSize = 0;
+  let hasMatch = false;
   const resolvedPath = path.resolve(dirPath);
   const baseName = path.basename(resolvedPath);
 
@@ -57,6 +73,8 @@ export function buildSizeMap(dirPath, ignoreList = [], sizeMap = new Map()) {
   if (ignoreList.includes(baseName)) {
     return sizeMap;
   }
+
+  const matchRegex = matchPattern ? wildcardToRegex(matchPattern) : null;
 
   try {
     const files = fs.readdirSync(resolvedPath, { withFileTypes: true });
@@ -67,15 +85,25 @@ export function buildSizeMap(dirPath, ignoreList = [], sizeMap = new Map()) {
       const filePath = path.join(resolvedPath, file.name);
 
       if (file.isDirectory()) {
-        buildSizeMap(filePath, ignoreList, sizeMap);
-        totalSize += sizeMap.get(filePath) || 0;
+        buildSizeMap(filePath, options, sizeMap);
+        // サブディレクトリ配下にマッチするファイルが存在した場合のみサイズを加算
+        if (sizeMap.has(filePath)) {
+          totalSize += sizeMap.get(filePath) || 0;
+          hasMatch = true;
+        }
       } else if (file.isFile()) {
-        try {
-          const stats = fs.statSync(filePath);
-          sizeMap.set(filePath, stats.size);
-          totalSize += stats.size;
-        } catch (e) {
-          sizeMap.set(filePath, 0);
+        // パターンが指定されている場合はマッチングを行い、指定がない場合は全てマッチ扱いとする
+        const isMatched = matchRegex ? matchRegex.test(file.name) : true;
+        if (isMatched) {
+          try {
+            const stats = fs.statSync(filePath);
+            sizeMap.set(filePath, stats.size);
+            totalSize += stats.size;
+            hasMatch = true;
+          } catch (e) {
+            sizeMap.set(filePath, 0);
+            hasMatch = true;
+          }
         }
       }
     }
@@ -83,7 +111,10 @@ export function buildSizeMap(dirPath, ignoreList = [], sizeMap = new Map()) {
     // ディレクトリが読み込めない場合は totalSize = 0 のまま
   }
 
-  sizeMap.set(resolvedPath, totalSize);
+  // 配下にマッチするものがある、またはパターン指定がない場合のみマップに登録
+  if (hasMatch || !matchPattern) {
+    sizeMap.set(resolvedPath, totalSize);
+  }
   return sizeMap;
 }
 
@@ -100,7 +131,8 @@ export function renderTree(dirPath, sizeMap, options = {}) {
     maxDepth = Infinity,
     ignoreList = [],
     isSort = false,
-    useColor = false
+    useColor = false,
+    showFiles = false
   } = options;
 
   // 指定の深さに達した場合は処理を終了
@@ -119,10 +151,21 @@ export function renderTree(dirPath, sizeMap, options = {}) {
   }
 
   // 無視するファイル・フォルダを除外
-  files = files.filter(file => !ignoreList.includes(file.name));
+  let displayFiles = files.filter(file => !ignoreList.includes(file.name));
+
+  // パターンマッチで有効なパス（sizeMapに含まれているパス）のみにフィルタ
+  displayFiles = displayFiles.filter(file => {
+    const filePath = path.join(resolvedPath, file.name);
+    return sizeMap.has(filePath);
+  });
+
+  // ファイル表示フラグが false の場合は、フォルダのみに制限
+  if (!showFiles) {
+    displayFiles = displayFiles.filter(file => file.isDirectory());
+  }
 
   // ソート処理
-  files.sort((a, b) => {
+  displayFiles.sort((a, b) => {
     const pathA = path.join(resolvedPath, a.name);
     const pathB = path.join(resolvedPath, b.name);
 
@@ -139,8 +182,8 @@ export function renderTree(dirPath, sizeMap, options = {}) {
     }
   });
 
-  files.forEach((file, index) => {
-    const isLast = index === files.length - 1;
+  displayFiles.forEach((file, index) => {
+    const isLast = index === displayFiles.length - 1;
     const marker = isLast ? '└── ' : '├── ';
     const filePath = path.join(resolvedPath, file.name);
 
@@ -150,7 +193,6 @@ export function renderTree(dirPath, sizeMap, options = {}) {
       
       let dirNameDisp = `${file.name}/`;
       if (useColor) {
-        // 深さに応じたフォルダカラーの適用
         const color = COLORS.depths[currentDepth % COLORS.depths.length];
         dirNameDisp = `${color}${file.name}/${COLORS.reset}`;
       }
@@ -164,7 +206,8 @@ export function renderTree(dirPath, sizeMap, options = {}) {
         maxDepth,
         ignoreList,
         isSort,
-        useColor
+        useColor,
+        showFiles
       });
     } else if (file.isFile()) {
       const fileSize = sizeMap.get(filePath) || 0;
@@ -187,7 +230,9 @@ export function main() {
   const rawArgs = process.argv.slice(2);
   let isTree = false;
   let isSort = false;
+  let showFiles = false;
   let maxDepth = Infinity;
+  let matchPattern = null;
   const ignoreList = [];
   const paths = [];
 
@@ -198,17 +243,26 @@ export function main() {
       isTree = true;
     } else if (arg === '-sort' || arg === '--sort') {
       isSort = true;
+    } else if (arg === '-f' || arg === '--files' || arg === '/f') {
+      showFiles = true;
     } else if (arg === '-depth' || arg === '--depth') {
       const nextArg = rawArgs[i + 1];
       const parsedDepth = parseInt(nextArg, 10);
       if (!isNaN(parsedDepth)) {
         maxDepth = parsedDepth;
-        i++; // パラメータ値を消費
+        i++;
       } else {
         console.error(`警告: -depth には数値を指定してください。デフォルトの無制限で動作します。`);
       }
+    } else if (arg === '-match' || arg === '--match') {
+      const nextArg = rawArgs[i + 1];
+      if (nextArg && !nextArg.startsWith('-')) {
+        matchPattern = nextArg;
+        i++;
+      } else {
+        console.error(`警告: -match には検索するワイルドカードパターンを指定してください。`);
+      }
     } else if (arg === '-ignore' || arg === '--ignore') {
-      // 連続する引数がオプション（-で始まる）でなくなるまで無視リストに追加
       while (i + 1 < rawArgs.length && !rawArgs[i + 1].startsWith('-')) {
         ignoreList.push(rawArgs[i + 1]);
         i++;
@@ -246,8 +300,15 @@ export function main() {
           continue;
         }
 
-        // 1回走査してサイズ情報をキャッシュ
-        const sizeMap = buildSizeMap(resolvedPath, ignoreList);
+        // サイズ情報をキャッシュ（パターンマッチ情報も渡す）
+        const sizeMap = buildSizeMap(resolvedPath, { ignoreList, matchPattern });
+        
+        // パターンマッチが指定されていて、かつマッチするものが存在しない場合は登録がない
+        if (matchPattern && !sizeMap.has(resolvedPath)) {
+          console.log(`情報: ${targetPath} 配下にパターン "${matchPattern}" にマッチするファイルはありません。`);
+          continue;
+        }
+
         const totalSize = sizeMap.get(resolvedPath) || 0;
 
         if (isTree) {
@@ -257,7 +318,8 @@ export function main() {
             maxDepth,
             ignoreList,
             isSort,
-            useColor
+            useColor,
+            showFiles
           });
         } else {
           const typeStr = useColor ? `${COLORS.depths[0]}[ディレクトリ]${COLORS.reset}` : '[ディレクトリ]';
@@ -269,6 +331,16 @@ export function main() {
           console.log(`情報: ${targetPath} は無視リストに含まれているためスキップします。`);
           continue;
         }
+
+        // ファイル個別のマッチ判定
+        if (matchPattern) {
+          const matchRegex = wildcardToRegex(matchPattern);
+          if (!matchRegex.test(baseName)) {
+            console.log(`情報: ${targetPath} はパターン "${matchPattern}" にマッチしないためスキップします。`);
+            continue;
+          }
+        }
+
         const typeStr = useColor ? `${COLORS.file}[ファイル]${COLORS.reset}` : '[ファイル]';
         console.log(`${targetPath}: ${typeStr} ${formatSize(stats.size, useColor)}`);
       }
