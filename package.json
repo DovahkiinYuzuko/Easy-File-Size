@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "pkg .",
-    "build:msi": "candle -out dist/yoryo.wixobj wix/yoryo.wxs; light -out dist/Easy-File-Size-Installer.msi dist/yoryo.wixobj"
+    "build:msi": "candle -out dist/yoryo.wixobj wix/yoryo.wxs && light -out dist/Easy-File-Size-Installer.msi dist/yoryo.wixobj"
   },
   "engines": {
     "node": ">=16.0.0"
