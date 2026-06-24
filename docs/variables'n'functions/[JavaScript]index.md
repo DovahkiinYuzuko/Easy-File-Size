@@ -4,21 +4,21 @@
 
 ## 変数・関数定義
 
-### `formatSize` (関数)
+###  (関数)`formatSize` (L11-18)
 - **役割**: バイト数を人間が読みやすい単位（B, KB, MB, GB, TB）に変換する。
 - **引数**:
   - `bytes` (number): 変換対象のバイト数。
 - **戻り値**:
   - `string`: フォーマットされたサイズ表記（例: `"1.25 MB (1,310,720 bytes)"`）。
 
-### `getDirSize` (関数)
+### (関数)`getDirSize` (L25-46)
 - **役割**: 指定されたディレクトリ配下の全ファイルの合計サイズを再帰的に計算する。
 - **引数**:
   - `dirPath` (string): 対象ディレクトリのパス。
 - **戻り値**:
   - `number`: ディレクトリ配下の全ファイルの合計バイト数。
 
-### `renderTree` (関数)
+### (関数)`renderTree` (L53-91)
 - **役割**: 指定されたディレクトリ配下のファイルとフォルダをツリー構造で再帰的にコンソールに描画し、それぞれのサイズを出力する。
 - **引数**:
   - `dirPath` (string): 対象ディレクトリのパス。
@@ -26,7 +26,7 @@
 - **戻り値**:
   - `void`
 
-### `main` (関数)
+### (関数)`main` (L96-141)
 - **役割**: コマンドのメインエントリーポイント。引数をパースし、`-tree` オプションの有無や対象パスを判別して適切な処理（サイズ計算またはツリー描画）を呼び出す。
 - **引数**:
   - なし（`process.argv` から取得）。
@@ -44,8 +44,6 @@ graph TD
   main --> formatSize["formatSize()"]
   renderTree --> getDirSize
   renderTree --> formatSize
-  renderTree --> renderTree
-  getDirSize --> getDirSize
 ```
 
 ---
