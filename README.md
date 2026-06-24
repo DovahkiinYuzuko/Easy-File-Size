@@ -4,7 +4,6 @@
 
 ![Node.js](https://img.shields.io/badge/Node.js-v16.0.0+-339933?style=flat-square&logo=node.js&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)
-![Platform: Windows](https://img.shields.io/badge/Platform-Windows-blue?style=flat-square)
 
 [日本語](#日本語) | [English](#english)
 
@@ -13,7 +12,7 @@
 ## 日本語
 
 ### 概要
-`yoryo` は、コマンドプロンプトやPowerShell上で、指定したファイルやフォルダのサイズを素早く調査・確認できるNode.js製のCLIツールです。
+簡単ファイルサイズ（Easy-File-Size）は、ターミナル上から `yoryo` コマンドで呼び出して、指定したファイルやフォルダのサイズを素早く調査・確認できるNode.js製のCLIツールです。
 
 > [!NOTE]
 > **動作環境に関する注意点**
@@ -64,12 +63,15 @@ yoryo -tree -ignore node_modules .git
 yoryo -h
 ```
 
+### ライセンス
+このプロジェクトはMITライセンスの下で公開されています。詳細は [LICENSE](LICENSE) ファイルをご覧ください。
+
 ---
 
 ## English
 
 ### Overview
-`yoryo` is a Node.js-based CLI tool that allows you to quickly inspect and check the sizes of files and folders in your terminal.
+Easy-File-Size is a Node.js-based CLI tool that can be invoked via the `yoryo` command in your terminal to quickly inspect and check the sizes of files and folders.
 
 > [!NOTE]
 > **Environment Compatibility**
@@ -119,3 +121,6 @@ yoryo -tree -ignore node_modules .git
 # Show help
 yoryo -h
 ```
+
+### License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
