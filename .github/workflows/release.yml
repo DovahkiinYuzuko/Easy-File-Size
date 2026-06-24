@@ -40,8 +40,8 @@ jobs:
         with:
           files: |
             dist/Easy-File-Size-Installer.msi
-            dist/yoryo-win-x64.exe
-            dist/yoryo-macos-x64
-            dist/yoryo-linux-x64
+            dist/easy-file-size-win.exe
+            dist/easy-file-size-macos
+            dist/easy-file-size-linux
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
