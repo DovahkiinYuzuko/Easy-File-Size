@@ -3,17 +3,41 @@
 import fs from 'fs';
 import path from 'path';
 
+// カラーコードの定義
+const COLORS = {
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  depths: [
+    '\x1b[36m', // Cyan (深さ0)
+    '\x1b[32m', // Green (深さ1)
+    '\x1b[33m', // Yellow (深さ2)
+    '\x1b[35m', // Magenta (深さ3)
+    '\x1b[34m', // Blue (深さ4)
+  ],
+  file: '\x1b[37m', // White
+  size: '\x1b[90m', // Gray
+  error: '\x1b[31m', // Red
+};
+
 /**
  * バイト数を人間が読みやすい単位（B, KB, MB, GB, TB）に変換する
  * @param {number} bytes - バイト数
+ * @param {boolean} useColor - カラー表示を使用するかどうか
  * @returns {string} フォーマットされたサイズ表記
  */
-export function formatSize(bytes) {
-  if (bytes === 0) return '0 B';
+export function formatSize(bytes, useColor = false) {
+  if (bytes === 0) {
+    return useColor ? `${COLORS.dim}0 B${COLORS.reset}` : '0 B';
+  }
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   const formatted = parseFloat((bytes / Math.pow(k, i)).toFixed(2));
+  
+  if (useColor) {
+    return `${COLORS.bold}${formatted} ${sizes[i]}${COLORS.reset} ${COLORS.dim}(${bytes.toLocaleString()} bytes)${COLORS.reset}`;
+  }
   return `${formatted} ${sizes[i]} (${bytes.toLocaleString()} bytes)`;
 }
 
@@ -75,7 +99,8 @@ export function renderTree(dirPath, sizeMap, options = {}) {
     currentDepth = 0,
     maxDepth = Infinity,
     ignoreList = [],
-    isSort = false
+    isSort = false,
+    useColor = false
   } = options;
 
   // 指定の深さに達した場合は処理を終了
@@ -88,7 +113,8 @@ export function renderTree(dirPath, sizeMap, options = {}) {
   try {
     files = fs.readdirSync(resolvedPath, { withFileTypes: true });
   } catch (e) {
-    console.log(`${prefix}├── [アクセス拒否または読み取りエラー]`);
+    const errorMsg = useColor ? `${COLORS.error}[アクセス拒否または読み取りエラー]${COLORS.reset}` : '[アクセス拒否または読み取りエラー]';
+    console.log(`${prefix}├── ${errorMsg}`);
     return;
   }
 
@@ -120,8 +146,16 @@ export function renderTree(dirPath, sizeMap, options = {}) {
 
     if (file.isDirectory()) {
       const dirSize = sizeMap.get(filePath) || 0;
-      const sizeStr = formatSize(dirSize);
-      console.log(`${prefix}${marker}${file.name}/ [${sizeStr}]`);
+      const sizeStr = formatSize(dirSize, useColor);
+      
+      let dirNameDisp = `${file.name}/`;
+      if (useColor) {
+        // 深さに応じたフォルダカラーの適用
+        const color = COLORS.depths[currentDepth % COLORS.depths.length];
+        dirNameDisp = `${color}${file.name}/${COLORS.reset}`;
+      }
+
+      console.log(`${prefix}${marker}${dirNameDisp} [${sizeStr}]`);
 
       const newPrefix = prefix + (isLast ? '    ' : '│   ');
       renderTree(filePath, sizeMap, {
@@ -129,12 +163,19 @@ export function renderTree(dirPath, sizeMap, options = {}) {
         currentDepth: currentDepth + 1,
         maxDepth,
         ignoreList,
-        isSort
+        isSort,
+        useColor
       });
     } else if (file.isFile()) {
       const fileSize = sizeMap.get(filePath) || 0;
-      const sizeStr = formatSize(fileSize);
-      console.log(`${prefix}${marker}${file.name} [${sizeStr}]`);
+      const sizeStr = formatSize(fileSize, useColor);
+      
+      let fileNameDisp = file.name;
+      if (useColor) {
+        fileNameDisp = `${COLORS.file}${file.name}${COLORS.reset}`;
+      }
+
+      console.log(`${prefix}${marker}${fileNameDisp} [${sizeStr}]`);
     }
   });
 }
@@ -177,6 +218,12 @@ export function main() {
     }
   }
 
+  // TTY出力かつ --no-color がない場合にカラー表示を有効化
+  let useColor = process.stdout.isTTY;
+  if (rawArgs.includes('--no-color')) {
+    useColor = false;
+  }
+
   // パスが指定されていなければカレントディレクトリをデフォルトにする
   if (paths.length === 0) {
     paths.push('.');
@@ -205,14 +252,16 @@ export function main() {
 
         if (isTree) {
           console.log(`\n${targetPath} のツリー構造 (サイズ表示):`);
-          console.log(`. [${formatSize(totalSize)}]`);
+          console.log(`. [${formatSize(totalSize, useColor)}]`);
           renderTree(resolvedPath, sizeMap, {
             maxDepth,
             ignoreList,
-            isSort
+            isSort,
+            useColor
           });
         } else {
-          console.log(`${targetPath}: [ディレクトリ] ${formatSize(totalSize)}`);
+          const typeStr = useColor ? `${COLORS.depths[0]}[ディレクトリ]${COLORS.reset}` : '[ディレクトリ]';
+          console.log(`${targetPath}: ${typeStr} ${formatSize(totalSize, useColor)}`);
         }
       } else if (stats.isFile()) {
         const baseName = path.basename(resolvedPath);
@@ -220,7 +269,8 @@ export function main() {
           console.log(`情報: ${targetPath} は無視リストに含まれているためスキップします。`);
           continue;
         }
-        console.log(`${targetPath}: [ファイル] ${formatSize(stats.size)}`);
+        const typeStr = useColor ? `${COLORS.file}[ファイル]${COLORS.reset}` : '[ファイル]';
+        console.log(`${targetPath}: ${typeStr} ${formatSize(stats.size, useColor)}`);
       }
     } catch (error) {
       console.error(`エラー: ${targetPath} の処理中にエラーが発生しました: ${error.message}`);
