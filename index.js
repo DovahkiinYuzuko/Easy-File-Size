@@ -35,6 +35,32 @@ function wildcardToRegex(pattern) {
 }
 
 /**
+ * ヘルプメッセージを英語でコンソールに出力する
+ */
+function showHelp() {
+  console.log(`
+Usage: yoryo [options] [paths...]
+
+An easy file and directory size checker CLI tool.
+
+Options:
+  -h, --help           Show this help message.
+  -tree, --tree        Show directory structure as a tree.
+  -f, --files, /f      Show files in the tree view (default is folders only).
+  -depth <number>      Limit the depth of the tree view.
+  -sort, --sort        Sort outputs by size in descending order.
+  -match <pattern>     Match files using a wildcard pattern (e.g. "*.py").
+  -ignore <paths...>   Ignore specified files or directories.
+  --no-color           Disable colorized terminal output.
+
+Examples:
+  yoryo
+  yoryo -tree -depth 2
+  yoryo -tree -f -match "*.js" -ignore node_modules
+`);
+}
+
+/**
  * バイト数を人間が読みやすい単位（B, KB, MB, GB, TB）に変換する
  * @param {number} bytes - バイト数
  * @param {boolean} useColor - カラー表示を使用するかどうか
@@ -228,6 +254,13 @@ export function renderTree(dirPath, sizeMap, options = {}) {
  */
 export function main() {
   const rawArgs = process.argv.slice(2);
+
+  // ヘルプオプションが指定されている場合は、ヘルプを表示して終了
+  if (rawArgs.includes('-h') || rawArgs.includes('--help')) {
+    showHelp();
+    process.exit(0);
+  }
+
   let isTree = false;
   let isSort = false;
   let showFiles = false;
