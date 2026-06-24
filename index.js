@@ -18,72 +18,121 @@ export function formatSize(bytes) {
 }
 
 /**
- * 指定されたディレクトリ配下の全ファイルの合計サイズを再帰的に計算する
+ * 指定されたディレクトリ配下のサイズを1回の走査で集計し、各パスの合計バイト数を記録したMapを返す
  * @param {string} dirPath - 対象ディレクトリのパス
- * @returns {number} 合計バイト数
+ * @param {string[]} ignoreList - 無視するフォルダ/ファイル名の配列
+ * @param {Map<string, number>} sizeMap - 再帰用サイズ情報マップ
+ * @returns {Map<string, number>} 構築されたサイズマップ
  */
-export function getDirSize(dirPath) {
-  let size = 0;
+export function buildSizeMap(dirPath, ignoreList = [], sizeMap = new Map()) {
+  let totalSize = 0;
+  const resolvedPath = path.resolve(dirPath);
+  const baseName = path.basename(resolvedPath);
+
+  // 指定されたディレクトリ自体が無視対象であれば空のマップを返す
+  if (ignoreList.includes(baseName)) {
+    return sizeMap;
+  }
+
   try {
-    const files = fs.readdirSync(dirPath, { withFileTypes: true });
+    const files = fs.readdirSync(resolvedPath, { withFileTypes: true });
     for (const file of files) {
-      const filePath = path.join(dirPath, file.name);
+      if (ignoreList.includes(file.name)) {
+        continue;
+      }
+      const filePath = path.join(resolvedPath, file.name);
+
       if (file.isDirectory()) {
-        size += getDirSize(filePath);
+        buildSizeMap(filePath, ignoreList, sizeMap);
+        totalSize += sizeMap.get(filePath) || 0;
       } else if (file.isFile()) {
         try {
           const stats = fs.statSync(filePath);
-          size += stats.size;
+          sizeMap.set(filePath, stats.size);
+          totalSize += stats.size;
         } catch (e) {
-          // ファイル情報が取得できない場合はサイズ0として無視
+          sizeMap.set(filePath, 0);
         }
       }
     }
   } catch (e) {
-    // ディレクトリの読み込みに失敗した場合はサイズ0として無視
+    // ディレクトリが読み込めない場合は totalSize = 0 のまま
   }
-  return size;
+
+  sizeMap.set(resolvedPath, totalSize);
+  return sizeMap;
 }
 
 /**
- * ディレクトリ配下の構造をツリー形式で再帰的にコンソール出力する
+ * ディレクトリ配下の構造をキャッシュされたサイズ情報を用いてツリー表示する
  * @param {string} dirPath - 対象ディレクトリのパス
- * @param {string} prefix - インデント描画用の接頭辞
+ * @param {Map<string, number>} sizeMap - 構築済みのサイズマップ
+ * @param {object} options - ツリー描画用オプション
  */
-export function renderTree(dirPath, prefix = '') {
+export function renderTree(dirPath, sizeMap, options = {}) {
+  const {
+    prefix = '',
+    currentDepth = 0,
+    maxDepth = Infinity,
+    ignoreList = [],
+    isSort = false
+  } = options;
+
+  // 指定の深さに達した場合は処理を終了
+  if (currentDepth >= maxDepth) {
+    return;
+  }
+
+  const resolvedPath = path.resolve(dirPath);
   let files = [];
   try {
-    files = fs.readdirSync(dirPath, { withFileTypes: true });
+    files = fs.readdirSync(resolvedPath, { withFileTypes: true });
   } catch (e) {
     console.log(`${prefix}├── [アクセス拒否または読み取りエラー]`);
     return;
   }
 
-  // ディレクトリが先、ファイルが後になるよう名前順でソート
+  // 無視するファイル・フォルダを除外
+  files = files.filter(file => !ignoreList.includes(file.name));
+
+  // ソート処理
   files.sort((a, b) => {
-    if (a.isDirectory() && !b.isDirectory()) return -1;
-    if (!a.isDirectory() && b.isDirectory()) return 1;
-    return a.name.localeCompare(b.name);
+    const pathA = path.join(resolvedPath, a.name);
+    const pathB = path.join(resolvedPath, b.name);
+
+    if (isSort) {
+      // 合計サイズが大きい順（降順）にソート
+      const sizeA = sizeMap.get(pathA) || 0;
+      const sizeB = sizeMap.get(pathB) || 0;
+      return sizeB - sizeA;
+    } else {
+      // デフォルト: ディレクトリが先、ファイルが後。それぞれ名前順。
+      if (a.isDirectory() && !b.isDirectory()) return -1;
+      if (!a.isDirectory() && b.isDirectory()) return 1;
+      return a.name.localeCompare(b.name);
+    }
   });
 
   files.forEach((file, index) => {
     const isLast = index === files.length - 1;
     const marker = isLast ? '└── ' : '├── ';
-    const filePath = path.join(dirPath, file.name);
+    const filePath = path.join(resolvedPath, file.name);
 
     if (file.isDirectory()) {
-      const dirSize = getDirSize(filePath);
+      const dirSize = sizeMap.get(filePath) || 0;
       const sizeStr = formatSize(dirSize);
       console.log(`${prefix}${marker}${file.name}/ [${sizeStr}]`);
+
       const newPrefix = prefix + (isLast ? '    ' : '│   ');
-      renderTree(filePath, newPrefix);
+      renderTree(filePath, sizeMap, {
+        prefix: newPrefix,
+        currentDepth: currentDepth + 1,
+        maxDepth,
+        ignoreList,
+        isSort
+      });
     } else if (file.isFile()) {
-      let fileSize = 0;
-      try {
-        fileSize = fs.statSync(filePath).size;
-      } catch (e) {
-        // エラー時は0バイト扱い
-      }
+      const fileSize = sizeMap.get(filePath) || 0;
       const sizeStr = formatSize(fileSize);
       console.log(`${prefix}${marker}${file.name} [${sizeStr}]`);
     }
@@ -96,17 +145,39 @@ export function renderTree(dirPath, prefix = '') {
 export function main() {
   const rawArgs = process.argv.slice(2);
   let isTree = false;
+  let isSort = false;
+  let maxDepth = Infinity;
+  const ignoreList = [];
   const paths = [];
 
-  for (const arg of rawArgs) {
+  for (let i = 0; i < rawArgs.length; i++) {
+    const arg = rawArgs[i];
+
     if (arg === '-tree' || arg === '--tree') {
       isTree = true;
+    } else if (arg === '-sort' || arg === '--sort') {
+      isSort = true;
+    } else if (arg === '-depth' || arg === '--depth') {
+      const nextArg = rawArgs[i + 1];
+      const parsedDepth = parseInt(nextArg, 10);
+      if (!isNaN(parsedDepth)) {
+        maxDepth = parsedDepth;
+        i++; // パラメータ値を消費
+      } else {
+        console.error(`警告: -depth には数値を指定してください。デフォルトの無制限で動作します。`);
+      }
+    } else if (arg === '-ignore' || arg === '--ignore') {
+      // 連続する引数がオプション（-で始まる）でなくなるまで無視リストに追加
+      while (i + 1 < rawArgs.length && !rawArgs[i + 1].startsWith('-')) {
+        ignoreList.push(rawArgs[i + 1]);
+        i++;
+      }
     } else {
       paths.push(arg);
     }
   }
 
-  // 対象パスが指定されていなければカレントディレクトリをデフォルトにする
+  // パスが指定されていなければカレントディレクトリをデフォルトにする
   if (paths.length === 0) {
     paths.push('.');
   }
@@ -122,16 +193,33 @@ export function main() {
     try {
       const stats = fs.statSync(resolvedPath);
       if (stats.isDirectory()) {
+        const baseName = path.basename(resolvedPath);
+        if (ignoreList.includes(baseName)) {
+          console.log(`情報: ${targetPath} は無視リストに含まれているためスキップします。`);
+          continue;
+        }
+
+        // 1回走査してサイズ情報をキャッシュ
+        const sizeMap = buildSizeMap(resolvedPath, ignoreList);
+        const totalSize = sizeMap.get(resolvedPath) || 0;
+
         if (isTree) {
           console.log(`\n${targetPath} のツリー構造 (サイズ表示):`);
-          const totalSize = getDirSize(resolvedPath);
           console.log(`. [${formatSize(totalSize)}]`);
-          renderTree(resolvedPath);
+          renderTree(resolvedPath, sizeMap, {
+            maxDepth,
+            ignoreList,
+            isSort
+          });
         } else {
-          const totalSize = getDirSize(resolvedPath);
           console.log(`${targetPath}: [ディレクトリ] ${formatSize(totalSize)}`);
         }
       } else if (stats.isFile()) {
+        const baseName = path.basename(resolvedPath);
+        if (ignoreList.includes(baseName)) {
+          console.log(`情報: ${targetPath} は無視リストに含まれているためスキップします。`);
+          continue;
+        }
         console.log(`${targetPath}: [ファイル] ${formatSize(stats.size)}`);
       }
     } catch (error) {
