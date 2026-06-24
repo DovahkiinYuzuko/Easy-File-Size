@@ -27,7 +27,7 @@
         <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
             <!-- Sourceはpkgで出力されたexe。インストール先ではyoryo.exeにリネームして配置 -->
             <Component Id="ProductComponent" Guid="3fcd7b9b-c40d-4bd9-93e3-774fbe8cb14d">
-                <File Id="YoryoExe" Source="dist\easy-file-size-win-x64.exe" Name="yoryo.exe" KeyPath="yes" />
+                <File Id="YoryoExe" Source="dist\yoryo-win-x64.exe" Name="yoryo.exe" KeyPath="yes" />
             </Component>
         </ComponentGroup>
 
